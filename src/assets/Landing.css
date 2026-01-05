@@ -1,0 +1,129 @@
+@import url("https://fonts.googleapis.com/css?family=Poppins:200,300,400,500,600,700,800,900&display=swap");
+
+/* * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+} */
+
+section {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+section .wave {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #6bbf50;
+    box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.5);
+    transition: 0.5s;
+}
+
+section .wave span {
+    content: "";
+    position: absolute;
+    width: 325vh;
+    height: 325vh;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -75%);
+    background: #fff;
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.content h2 {
+    position: relative;
+    z-index: 1;
+    font-size: 4em;
+    letter-spacing: 2px;
+    color: #fff;
+    font-family: 'poppins', sans-serif;
+
+}
+
+
+.content p {
+    position: relative;
+    z-index: 1;
+    font-size: 1em;
+    color: #fff;
+}
+
+.content .buttons {
+    display: flex;
+    gap: 1rem;
+    position: relative;
+    z-index: 1;
+    margin: 2rem 0;
+}
+
+.content .buttons .btn1 {
+    background-color: #08a045;
+    color: #fff;
+    padding: 1rem 2rem;
+    border-radius: 100px;
+    text-decoration: none;
+    transition: 0.3s ease-in;
+}
+
+.content .buttons .btn1:hover {
+    background-color: #068638;
+}
+
+.content .buttons .btn2 {
+    background-color: #fff;
+    color: #000;
+    padding: 1rem 2rem;
+    border-radius: 100px;
+    text-decoration: none;
+    transition: 0.3s ease-in;
+}
+
+.content .buttons .btn2:hover {
+    background-color: #e0e0e0;
+}
+
+section .wave span:nth-child(1) {
+    border-radius: 45%;
+    background: #141414;
+    animation: animate 5s linear infinite;
+}
+
+section .wave span:nth-child(2) {
+    border-radius: 40%;
+    background: #14141480;
+    animation: animate 10s linear infinite;
+}
+
+section .wave span:nth-child(3) {
+    border-radius: 42.5%;
+    background: #14141480;
+    animation: animate 15s linear infinite;
+}
+
+@keyframes animate {
+    0% {
+        transform: translate(-50%, -75%) rotate(0deg);
+    }
+
+    100% {
+        transform: translate(-50%, -75%) rotate(360deg);
+    }
+}

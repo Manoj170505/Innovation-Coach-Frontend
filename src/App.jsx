@@ -8,6 +8,8 @@ import { useState } from "react";
 import Popular from "./components/Popular";
 import Post from "./components/Post";
 import Detail from "./components/Detail";
+import Profile from "./components/Profile";
+import EditProfile from "./components/EditProfile";
 
 function App() {
   const location = useLocation();
@@ -26,6 +28,8 @@ function App() {
             <Route path="/popular" element={<Popular />} />
             <Route path="/post" element={<Post />} />
             <Route path="/project-details" element={<Detail />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/edit-profile" element={<EditProfile />} />
           </Routes>
         </div>
       </main>

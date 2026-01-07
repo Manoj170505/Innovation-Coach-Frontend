@@ -72,7 +72,7 @@ const Navbar = ({ isCollapsed, setIsCollapsed }) => {
 
                 {/* User/Bottom Section */}
                 <div className="pt-4 mt-4 border-t border-white/5 space-y-2">
-                    <button className='w-full flex items-center p-3 text-white/40 hover:bg-white/5 hover:text-white rounded-xl transition-colors group'>
+                    <button className='w-full flex items-center p-3 text-white/40 hover:bg-white/5 hover:text-white rounded-xl transition-colors group' onClick={() => navigate('/profile')}>
                         <UserRoundCog size={22} />
                         {!isCollapsed && <span className="ml-4 font-medium">User</span>}
                     </button>

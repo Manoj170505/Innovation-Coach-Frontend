@@ -1,43 +1,43 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getMyProfile, updateProfileWithImage, updateProfile } from '../services/userService'
 
 const EditProfile = () => {
     const navigate = useNavigate();
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState('');
     const [profile, setProfile] = useState({
         name: '',
-        email: '',
         description: '',
-        image: '',
-        rating: 4.5,
-        stats: {
-            totalProjects: 10,
-            approved: 10,
-            waitlist: 10,
-            rejected: 10
-        }
+        profilePic: ''
     });
 
     useEffect(() => {
-        const savedProfile = localStorage.getItem('userProfile');
-        if (savedProfile) {
-            setProfile(JSON.parse(savedProfile));
-        } else {
-            // Default values if no profile saved
-            setProfile({
-                name: 'MJ',
-                email: 'mj@example.com',
-                description: 'Lorem ipsum dolor sit amet consectetur, adipisicing elit.',
-                image: 'https://images.unsplash.com/photo-1765530813405-d23f98fda0b4?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-                rating: 4.5,
-                stats: {
-                    totalProjects: 10,
-                    approved: 10,
-                    waitlist: 10,
-                    rejected: 10
-                }
-            });
-        }
+        fetchProfile();
     }, []);
+
+    const fetchProfile = async () => {
+        try {
+            setLoading(true);
+            const response = await getMyProfile();
+            if (response.status === 'success') {
+                const userData = response.data;
+                setProfile({
+                    name: userData.name || '',
+                    description: userData.description || '',
+                    profilePic: userData.profilePic || ''
+                });
+                setImagePreview(userData.profilePic || '');
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to load profile');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -50,22 +50,67 @@ const EditProfile = () => {
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                setError('Please select a valid image file');
+                return;
+            }
+
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                setError('Image size should be less than 5MB');
+                return;
+            }
+
+            setImageFile(file);
+
+            // Create preview
             const reader = new FileReader();
             reader.onloadend = () => {
-                setProfile(prev => ({
-                    ...prev,
-                    image: reader.result
-                }));
+                setImagePreview(reader.result);
             };
             reader.readAsDataURL(file);
+            setError('');
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        localStorage.setItem('userProfile', JSON.stringify(profile));
-        navigate('/profile');
+        setSaving(true);
+        setError('');
+
+        try {
+            if (imageFile) {
+                // If there's a new image, use FormData
+                const formData = new FormData();
+                formData.append('name', profile.name);
+                formData.append('description', profile.description);
+                formData.append('profilePic', imageFile);
+
+                await updateProfileWithImage(formData);
+            } else {
+                // If no image, just update text fields
+                await updateProfile({
+                    name: profile.name,
+                    description: profile.description
+                });
+            }
+
+            navigate('/profile');
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to update profile');
+        } finally {
+            setSaving(false);
+        }
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-black text-white flex items-center justify-center">
+                <div className="w-12 h-12 border-4 border-green-500/30 border-t-green-500 rounded-full animate-spin"></div>
+            </div>
+        );
+    }
 
     return (
         <div className='min-h-screen bg-black text-white selection:bg-green-500/30 p-4 md:p-8 pt-24'>
@@ -76,23 +121,31 @@ const EditProfile = () => {
                         <button
                             onClick={() => navigate('/profile')}
                             className='px-6 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-colors'
+                            disabled={saving}
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleSubmit}
-                            className='bg-green-500 hover:bg-green-600 text-black font-bold px-6 py-2 rounded-full transition-colors'
+                            disabled={saving}
+                            className='bg-green-500 hover:bg-green-600 text-black font-bold px-6 py-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                         >
-                            Save Changes
+                            {saving ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
                 </div>
+
+                {error && (
+                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                        <p className="text-red-400 text-center">{error}</p>
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className='space-y-6'>
                     <div className='flex flex-col items-center gap-4 mb-8'>
                         <div className='relative group'>
                             <img
-                                src={profile.image || 'https://via.placeholder.com/150'}
+                                src={imagePreview || 'https://via.placeholder.com/150'}
                                 alt="Profile Preview"
                                 className='w-32 h-32 rounded-full object-cover border-2 border-green-500/20 group-hover:border-green-500 transition-colors'
                             />
@@ -103,10 +156,13 @@ const EditProfile = () => {
                                     accept="image/*"
                                     className='hidden'
                                     onChange={handleImageChange}
+                                    disabled={saving}
                                 />
                             </label>
                         </div>
-                        <p className='text-sm text-gray-400'>Click to change profile picture</p>
+                        <p className='text-sm text-gray-400'>
+                            {imageFile ? `Selected: ${imageFile.name}` : 'Click to change profile picture'}
+                        </p>
                     </div>
 
                     <div className='space-y-2'>
@@ -118,18 +174,8 @@ const EditProfile = () => {
                             onChange={handleChange}
                             className='w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-green-500 outline-none transition-colors'
                             placeholder="Your Name"
-                        />
-                    </div>
-
-                    <div className='space-y-2'>
-                        <label className='text-sm font-medium text-gray-400'>Email Address</label>
-                        <input
-                            type="email"
-                            name="email"
-                            value={profile.email}
-                            onChange={handleChange}
-                            className='w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-green-500 outline-none transition-colors'
-                            placeholder="your@email.com"
+                            required
+                            disabled={saving}
                         />
                     </div>
 
@@ -142,6 +188,7 @@ const EditProfile = () => {
                             rows="4"
                             className='w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-green-500 outline-none transition-colors resize-none'
                             placeholder="Tell us about yourself..."
+                            disabled={saving}
                         ></textarea>
                     </div>
                 </form>

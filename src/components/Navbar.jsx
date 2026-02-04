@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
     LayoutDashboard,
     FolderKanban,
@@ -10,12 +11,13 @@ import {
     UserRoundCog,
     Menu,
     X,
-    MessageSquare
+    Shield
 } from 'lucide-react';
 
 const Navbar = ({ isCollapsed, setIsCollapsed }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { logout, isAdmin } = useAuth();
 
     const navItems = [
         { name: 'Home', path: '/userpage', icon: LayoutDashboard },
@@ -23,6 +25,11 @@ const Navbar = ({ isCollapsed, setIsCollapsed }) => {
         { name: 'My Projects', path: '/projects', icon: FolderKanban },
         { name: 'Post', path: '/post', icon: Pencil },
     ];
+
+    const handleLogout = () => {
+        logout();
+        navigate('/');
+    };
 
     return (
         <aside className={`fixed top-0 left-0 h-screen bg-neutral-primary bg-black border-r border-white/10 transition-all duration-300 z-50 ${isCollapsed ? 'w-20' : 'w-64'}`}>
@@ -72,15 +79,23 @@ const Navbar = ({ isCollapsed, setIsCollapsed }) => {
 
                 {/* User/Bottom Section */}
                 <div className="pt-4 mt-4 border-t border-white/5 space-y-2">
+                    {isAdmin() && (
+                        <button
+                            className='w-full flex items-center p-3 text-purple-400/60 hover:bg-purple-500/10 hover:text-purple-400 rounded-xl transition-colors group'
+                            onClick={() => navigate('/admin/dashboard')}
+                        >
+                            <Shield size={22} />
+                            {!isCollapsed && <span className="ml-4 font-medium">Admin</span>}
+                        </button>
+                    )}
                     <button className='w-full flex items-center p-3 text-white/40 hover:bg-white/5 hover:text-white rounded-xl transition-colors group' onClick={() => navigate('/profile')}>
                         <UserRoundCog size={22} />
-                        {!isCollapsed && <span className="ml-4 font-medium">User</span>}
+                        {!isCollapsed && <span className="ml-4 font-medium">Profile</span>}
                     </button>
-                    <button className="w-full flex items-center p-3 text-white/40 hover:bg-white/5 hover:text-white rounded-xl transition-colors group">
-                        <Settings size={22} />
-                        {!isCollapsed && <span className="ml-4 font-medium">Settings</span>}
-                    </button>
-                    <button className="w-full flex items-center p-3 text-red-400/60 hover:bg-red-500/10 hover:text-red-400 rounded-xl transition-colors group">
+                    <button
+                        className="w-full flex items-center p-3 text-red-400/60 hover:bg-red-500/10 hover:text-red-400 rounded-xl transition-colors group"
+                        onClick={handleLogout}
+                    >
                         <LogOut size={22} />
                         {!isCollapsed && <span className="ml-4 font-medium">Sign out</span>}
                     </button>

@@ -1,33 +1,81 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { login as loginAPI, signup as signupAPI } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 
 const Login = ({ onClose }) => {
     const navigate = useNavigate();
-    const [formData, setFormData] = useState({ email: '', password: '' });
+    const { login: setAuthUser } = useAuth();
+    const [formData, setFormData] = useState({ name: '', email: '', password: '', requestedRole: 'USER', adminRequestReason: '' });
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isSignUp, setIsSignUp] = useState(false);
+    const [error, setError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setError('');
+        setSuccessMessage('');
+
         if (isSignUp) {
-            setIsLoading(true);
-            setTimeout(() => {
-                setIsLoading(false);
-                console.log('Sign up request sent');
-                alert('Sign up request sent');
-            }, 2000);
+            await handleSignup();
         } else {
-            handleLogin();
+            await handleLogin();
         }
     };
 
-    const handleLogin = () => {
+    const handleSignup = async () => {
         setIsLoading(true);
-        setTimeout(() => {
+        try {
+            const response = await signupAPI({
+                name: formData.name,
+                email: formData.email,
+                password: formData.password,
+                requestedRole: formData.requestedRole,
+                adminRequestReason: formData.adminRequestReason
+            });
+
+            setSuccessMessage(response.message || 'Signup successful! Wait for admin approval.');
+            setFormData({ name: '', email: '', password: '', requestedRole: 'USER', adminRequestReason: '' });
+
+            // Switch to login form after 3 seconds
+            setTimeout(() => {
+                setIsSignUp(false);
+                setSuccessMessage('');
+            }, 3000);
+        } catch (err) {
+            setError(err.response?.data?.message || 'Signup failed. Please try again.');
+        } finally {
             setIsLoading(false);
-            navigate('/userpage');
-        }, 2000);
+        }
+    };
+
+    const handleLogin = async () => {
+        setIsLoading(true);
+        try {
+            const response = await loginAPI({
+                email: formData.email,
+                password: formData.password
+            });
+
+            if (response.status === 'success') {
+                setAuthUser(response.data);
+
+                // Navigate based on user role
+                if (response.data.role === 'ADMIN') {
+                    navigate('/admin/dashboard');
+                } else {
+                    navigate('/userpage');
+                }
+
+                if (onClose) onClose();
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -48,6 +96,18 @@ const Login = ({ onClose }) => {
                         <p className="text-white/40 font-medium text-sm">Elevate your creative potential.</p>
                     </div>
 
+                    {error && (
+                        <div className="w-full mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                            <p className="text-red-400 text-sm text-center">{error}</p>
+                        </div>
+                    )}
+
+                    {successMessage && (
+                        <div className="w-full mb-4 p-4 bg-green-500/10 border border-green-500/20 rounded-2xl">
+                            <p className="text-green-400 text-sm text-center">{successMessage}</p>
+                        </div>
+                    )}
+
                     <form action="" className="w-full flex flex-col gap-6" onSubmit={handleSubmit}>
                         <div className="space-y-4">
                             {isSignUp && (
@@ -60,6 +120,49 @@ const Login = ({ onClose }) => {
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         placeholder='Name'
                                         className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-5 text-white placeholder:text-white/10 outline-none focus:ring-2 focus:ring-[#08a045]/20 focus:border-[#08a045]/40 transition-all duration-300 font-inter"
+                                    />
+                                </div>
+                            )}
+
+                            {isSignUp && (
+                                <div className="space-y-3">
+                                    <label className="text-white/60 text-sm font-medium">Request Access As:</label>
+                                    <div className="flex gap-4">
+                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                            <input
+                                                type="radio"
+                                                name="requestedRole"
+                                                value="USER"
+                                                checked={formData.requestedRole === 'USER'}
+                                                onChange={(e) => setFormData({ ...formData, requestedRole: e.target.value, adminRequestReason: '' })}
+                                                className="w-4 h-4 text-[#08a045] bg-white/5 border-white/20 focus:ring-[#08a045]/20"
+                                            />
+                                            <span className="text-white/80 group-hover:text-white transition-colors">User</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                            <input
+                                                type="radio"
+                                                name="requestedRole"
+                                                value="ADMIN"
+                                                checked={formData.requestedRole === 'ADMIN'}
+                                                onChange={(e) => setFormData({ ...formData, requestedRole: e.target.value })}
+                                                className="w-4 h-4 text-[#08a045] bg-white/5 border-white/20 focus:ring-[#08a045]/20"
+                                            />
+                                            <span className="text-white/80 group-hover:text-white transition-colors">Admin</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+
+                            {isSignUp && formData.requestedRole === 'ADMIN' && (
+                                <div className="relative group">
+                                    <textarea
+                                        required
+                                        value={formData.adminRequestReason}
+                                        onChange={(e) => setFormData({ ...formData, adminRequestReason: e.target.value })}
+                                        placeholder='Why do you need admin access? (Required)'
+                                        rows="3"
+                                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-5 text-white placeholder:text-white/30 outline-none focus:ring-2 focus:ring-[#08a045]/20 focus:border-[#08a045]/40 transition-all duration-300 font-inter resize-none"
                                     />
                                 </div>
                             )}
@@ -76,38 +179,22 @@ const Login = ({ onClose }) => {
                             </div>
 
                             <div className="relative group">
-                                {isSignUp ? (
-                                    <>
-                                        <i className="bi bi-chat-fill absolute left-5 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-[#08a045] transition-colors duration-300"></i>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={formData.password}
-                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            placeholder='Enter Message'
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-12 text-white placeholder:text-white/10 outline-none focus:ring-2 focus:ring-[#08a045]/20 focus:border-[#08a045]/40 transition-all duration-300 font-inter"
-                                        />
-                                    </>
-                                ) : (
-                                    <>
-                                        <i className="bi bi-lock absolute left-5 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-[#08a045] transition-colors duration-300"></i>
-                                        <input
-                                            type={showPassword ? "text" : "password"}
-                                            required
-                                            value={formData.password}
-                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            placeholder='Secure Password'
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-12 text-white placeholder:text-white/10 outline-none focus:ring-2 focus:ring-[#08a045]/20 focus:border-[#08a045]/40 transition-all duration-300 font-inter"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/40 transition-colors"
-                                        >
-                                            <i className={`bi bi-${showPassword ? 'eye-slash' : 'eye'}`}></i>
-                                        </button>
-                                    </>
-                                )}
+                                <i className="bi bi-lock absolute left-5 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-[#08a045] transition-colors duration-300"></i>
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    placeholder='Secure Password'
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-12 text-white placeholder:text-white/10 outline-none focus:ring-2 focus:ring-[#08a045]/20 focus:border-[#08a045]/40 transition-all duration-300 font-inter"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/40 transition-colors"
+                                >
+                                    <i className={`bi bi-${showPassword ? 'eye-slash' : 'eye'}`}></i>
+                                </button>
                             </div>
                         </div>
 
@@ -115,15 +202,19 @@ const Login = ({ onClose }) => {
                             <label className="flex items-center gap-0.5 text-white/30 cursor-pointer transition-colors group">
                                 <p>{isSignUp ? 'Already have an account?' : "Don't have an account?"}</p>
                                 <span className="text-[#08a045] hover:text-[#08a045]/80 transition-colors font-semibold tracking-tight"
-                                    onClick={() => setIsSignUp(!isSignUp)}
-                                >Sign Up</span>
+                                    onClick={() => {
+                                        setIsSignUp(!isSignUp);
+                                        setError('');
+                                        setSuccessMessage('');
+                                    }}
+                                >{isSignUp ? 'Login' : 'Sign Up'}</span>
                             </label>
                             {isSignUp ? null : (<span className="text-[#08a045] hover:text-[#08a045]/80 transition-colors font-semibold tracking-tight">Forgot?</span>)}
                         </div>
 
                         <button
                             disabled={isLoading}
-                            className='group relative w-full bg-[#08a045] hover:bg-[#08a045]/90 text-white font-bold py-4 rounded-2xl shadow-xl shadow-[#08a045]/20 active:scale-[0.98] transition-all duration-300 mt-2 overflow-hidden'
+                            className='group relative w-full bg-[#08a045] hover:bg-[#08a045]/90 text-white font-bold py-4 rounded-2xl shadow-xl shadow-[#08a045]/20 active:scale-[0.98] transition-all duration-300 mt-2 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed'
                         >
                             <div className={`flex items-center justify-center gap-2 transition-transform duration-300 ${isLoading ? '-translate-y-20' : ''}`}>
                                 <span className="text-sm uppercase tracking-widest">{isSignUp ? 'Send Request' : 'Authenticate'}</span>

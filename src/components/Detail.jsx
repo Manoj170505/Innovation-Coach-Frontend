@@ -1,35 +1,93 @@
-import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Share2, Heart, ThumbsDown, MessageSquare } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { getPostById, likePost, dislikePost } from '../services/postService';
 
 const Detail = () => {
-    const location = useLocation();
+    const { id } = useParams();
     const navigate = useNavigate();
-    const project = location.state;
+    const [project, setProject] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [likesCount, setLikesCount] = useState(0);
+    const [dislikesCount, setDislikesCount] = useState(0);
+    const [isLiking, setIsLiking] = useState(false);
+    const [isDisliking, setIsDisliking] = useState(false);
 
-    const [like, setLike] = useState(false);
-    const [dislike, setDislike] = useState(false);
+    useEffect(() => {
+        fetchPostDetails();
+    }, [id]);
 
-    if (!project) {
+    const fetchPostDetails = async () => {
+        try {
+            setLoading(true);
+            const response = await getPostById(id);
+            if (response.status === 'success') {
+                setProject(response.data);
+                setLikesCount(response.data._count?.likes || 0);
+                setDislikesCount(response.data._count?.dislikes || 0);
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to load post details');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLike = async () => {
+        if (isLiking || !id) return;
+
+        try {
+            setIsLiking(true);
+            await likePost(id);
+            // Optimistically update the UI
+            setLikesCount(prev => prev > 0 ? prev - 1 : prev + 1);
+            // Optionally refresh to get accurate counts
+            await fetchPostDetails();
+        } catch (error) {
+            console.error('Failed to like post:', error);
+        } finally {
+            setIsLiking(false);
+        }
+    };
+
+    const handleDislike = async () => {
+        if (isDisliking || !id) return;
+
+        try {
+            setIsDisliking(true);
+            await dislikePost(id);
+            // Optimistically update the UI
+            setDislikesCount(prev => prev > 0 ? prev - 1 : prev + 1);
+            // Optionally refresh to get accurate counts
+            await fetchPostDetails();
+        } catch (error) {
+            console.error('Failed to dislike post:', error);
+        } finally {
+            setIsDisliking(false);
+        }
+    };
+
+    if (loading) {
         return (
             <div className="min-h-screen bg-black text-white flex items-center justify-center">
-                <div className="text-center space-y-4">
-                    <h2 className="text-2xl font-bold">Project not found</h2>
-                    <button onClick={() => navigate(-1)} className="text-green-500 hover:text-green-400 font-medium">Go back</button>
-                </div>
+                <div className="w-12 h-12 border-4 border-green-500/30 border-t-green-500 rounded-full animate-spin"></div>
             </div>
         );
     }
 
-    const handleLike = () => {
-        setLike(!like);
-        if (dislike) setDislike(false);
-    };
-
-    const handleDislike = () => {
-        setDislike(!dislike);
-        if (like) setLike(false);
-    };
+    if (error || !project) {
+        return (
+            <div className="min-h-screen bg-black text-white flex items-center justify-center">
+                <div className="text-center space-y-4">
+                    <h2 className="text-2xl font-bold">{error || 'Project not found'}</h2>
+                    <button onClick={() => navigate(-1)} className="px-6 py-3 bg-green-500 hover:bg-green-600 rounded-full transition-colors">
+                        Go back
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-black text-white selection:bg-green-500/30 pt-24 pb-12 px-4 md:px-8">
@@ -47,16 +105,35 @@ const Detail = () => {
 
                 {/* Project Identity */}
                 <div className="flex items-center gap-4 mb-8">
-                    <img className='bg-white/20 rounded-full w-12 h-12 p-1' src="./assets/user.png" alt="user-profile" />
+                    <img
+                        className='rounded-full w-12 h-12 object-cover border border-white/10'
+                        src={project.author?.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(project.author?.name || 'User')}&background=10b981&color=fff&size=128`}
+                        alt={`${project.author?.name}'s profile`}
+                        onError={(e) => {
+                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(project.author?.name || 'User')}&background=10b981&color=fff&size=128`;
+                        }}
+                    />
                     <div>
-                        <p className="font-bold text-lg">{project.userid || project.id || "Anonymous"}</p>
-                        <p className="text-sm text-white/40">Posted 2 days ago</p>
+                        <p className="font-bold text-lg">{project.author?.name || "Anonymous"}</p>
+                        <p className="text-sm text-white/40">Posted {new Date(project.createdAt).toLocaleDateString()}</p>
                     </div>
-                    {project.visibility && (
-                        <span className="ml-auto px-3 py-1 bg-green-500/10 text-green-500 rounded-full text-xs font-bold border border-green-500/20 uppercase tracking-wider">
-                            {project.visibility}
-                        </span>
-                    )}
+                    <div className="ml-auto flex gap-2">
+                        {project.visibility && (
+                            <span className="px-3 py-1 bg-blue-500/10 text-blue-500 rounded-full text-xs font-bold border border-blue-500/20 uppercase tracking-wider">
+                                {project.visibility}
+                            </span>
+                        )}
+                        {project.state && (
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${project.state === 'Approved'
+                                ? 'bg-green-500/10 text-green-500 border-green-500/20'
+                                : project.state === 'Rejected'
+                                    ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                                    : 'bg-orange-500/10 text-orange-500 border-orange-500/20'
+                                }`}>
+                                {project.state}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {/* Content Section */}
@@ -78,23 +155,29 @@ const Detail = () => {
                             The Full Idea
                         </h3>
                         <div className="text-white/70 leading-relaxed text-lg whitespace-pre-wrap">
-                            {project.details || "No detailed information provided for this project."}
+                            {project.content || "No detailed information provided for this project."}
                         </div>
                     </div>
 
                     {/* Interaction Bar */}
                     <div className="flex flex-wrap items-center gap-4 pt-6">
                         <button
-                            className={`flex items-center gap-2 ${like ? 'bi bi-heart-fill text-red-500' : 'bi bi-heart text-white/60'}`}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${likesCount > 0 ? 'bg-red-500/20 text-red-500' : 'bg-white/5 text-white/60 hover:bg-white/10'
+                                }`}
                             onClick={handleLike}
+                            disabled={isLiking}
                         >
-                            <span className="font-bold">{like ? '1' : '0'}</span>
+                            <i className={likesCount > 0 ? 'bi bi-heart-fill' : 'bi bi-heart'}></i>
+                            <span className="font-bold">{likesCount}</span>
                         </button>
                         <button
-                            className={`flex items-center gap-2 ${dislike ? 'bi bi-hand-thumbs-down-fill text-blue-500' : 'bi bi-hand-thumbs-down text-white/60'}`}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${dislikesCount > 0 ? 'bg-blue-500/20 text-blue-500' : 'bg-white/5 text-white/60 hover:bg-white/10'
+                                }`}
                             onClick={handleDislike}
+                            disabled={isDisliking}
                         >
-                            <span className="font-bold">{dislike ? '1' : '0'}</span>
+                            <i className={dislikesCount > 0 ? 'bi bi-hand-thumbs-down-fill' : 'bi bi-hand-thumbs-down'}></i>
+                            <span className="font-bold">{dislikesCount}</span>
                         </button>
                     </div>
                 </div>

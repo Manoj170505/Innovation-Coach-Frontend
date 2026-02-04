@@ -1,64 +1,47 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import PersonalCard from './PersonalCard'
-import { useState } from 'react'
+import { getUserPosts } from '../services/postService'
 
 const Projects = () => {
 
     const [visibility, setVisibility] = useState("public");
     const [search, setSearch] = useState("");
+    const [personal, setPersonal] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        fetchUserPosts();
+    }, []);
+
+    const fetchUserPosts = async () => {
+        try {
+            setLoading(true);
+            const response = await getUserPosts();
+            if (response.status === 'success') {
+                setPersonal(response.data);
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to load your posts');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleVisibility = (visibility) => {
         setVisibility(visibility);
     }
 
-    const personal = [
-        {
-            id: 1,
-            title: "Mern Stack",
-            description: "Personal Project Description",
-            details: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quod.",
-            visibility: "public"
-        },
-        {
-            id: 2,
-            title: "React Native",
-            description: "Personal Project Description",
-            details: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quod.",
-            visibility: "private"
-        },
-        {
-            id: 3,
-            title: "Flutter",
-            description: "Personal Project Description",
-            details: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quod.",
-            visibility: "private"
-        },
-        {
-            id: 4,
-            title: "NodeJs",
-            description: "Personal Project Description",
-            details: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quod.",
-            visibility: "public"
-        },
-        {
-            id: 5,
-            title: "Django",
-            description: "Personal Project Description",
-            details: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quod.",
-            visibility: "public"
-        },
-        {
-            id: 6,
-            title: "Laravel",
-            description: "Personal Project Description",
-            details: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quod.",
-            visibility: "public"
-        },
-    ]
+    const filteredPersonal = personal.filter((post) => post.visibility === visibility);
+    const filteredSearch = filteredPersonal.filter((post) => post.title.toLowerCase().includes(search.toLowerCase()));
 
-    const filteredPersonal = personal.filter((personal) => personal.visibility === visibility);
-    const filteredSearch = filteredPersonal.filter((personal) => personal.title.toLowerCase().includes(search.toLowerCase()));
-
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-black text-white flex items-center justify-center">
+                <div className="w-12 h-12 border-4 border-green-500/30 border-t-green-500 rounded-full animate-spin"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-black text-white selection:bg-green-500/30">
@@ -81,17 +64,33 @@ const Projects = () => {
                         </div>
                     </div>
 
+                    {error && (
+                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                            <p className="text-red-400 text-center">{error}</p>
+                        </div>
+                    )}
+
                     <div className="flex flex-col space-y-6 mx-auto w-full">
-                        {filteredSearch.map((personal) => (
-                            <PersonalCard
-                                key={personal.id}
-                                id={personal.id}
-                                title={personal.title}
-                                description={personal.description}
-                                details={personal.details}
-                                visibility={personal.visibility}
-                            />
-                        ))}
+                        {filteredSearch.length === 0 ? (
+                            <p className="text-gray-400 text-center py-12">
+                                {personal.length === 0
+                                    ? "You haven't created any posts yet. Share your first idea!"
+                                    : `No ${visibility} posts found.`}
+                            </p>
+                        ) : (
+                            filteredSearch.map((post) => (
+                                <PersonalCard
+                                    key={post.id}
+                                    id={post.id}
+                                    title={post.title}
+                                    description={post.description}
+                                    details={post.content}
+                                    visibility={post.visibility}
+                                    state={post.state}
+                                    onDelete={fetchUserPosts}
+                                />
+                            ))
+                        )}
                     </div>
                 </div>
             </main>

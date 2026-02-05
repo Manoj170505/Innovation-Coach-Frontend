@@ -92,7 +92,7 @@ const Login = ({ onClose }) => {
                 <div className="p-10 sm:p-14 flex flex-col items-center">
 
                     <div className="text-center mb-10">
-                        <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">Innovation Hub</h2>
+                        <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">Idea Hub</h2>
                         <p className="text-white/40 font-medium text-sm">Elevate your creative potential.</p>
                     </div>
 

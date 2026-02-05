@@ -19,7 +19,7 @@ const Landing = () => {
                 </div>
 
                 <div className="content">
-                    <h2>Innovative Coach</h2>
+                    <h2>Idea Hub</h2>
                     <p>" Empowering Your Ideas To Reality "</p>
                     <div className="buttons">
                         <button className='btn1'

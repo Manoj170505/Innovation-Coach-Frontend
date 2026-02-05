@@ -235,3 +235,4 @@ const Login = ({ onClose }) => {
 };
 
 export default Login;
+// End of Login.jsx

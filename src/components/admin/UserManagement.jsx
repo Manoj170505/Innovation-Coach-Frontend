@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { getAllUsers, getPendingUsers, approveUser, rejectUser, deleteUser } from '../../services/adminService';
+import { getAllUsers, getPendingUsers, approveUser, rejectUser, deleteUser, requestAdminToken } from '../../services/adminService';
 import { CheckCircle, XCircle, Search, Trash2 } from 'lucide-react';
 import ApprovalModal from './ApprovalModal';
+import AdminTokenModal from './AdminTokenModal';
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -11,6 +12,11 @@ const UserManagement = () => {
     const [error, setError] = useState('');
     const [selectedUser, setSelectedUser] = useState(null);
     const [showModal, setShowModal] = useState(false);
+
+    // Admin token management
+    const [adminToken, setAdminToken] = useState(null);
+    const [showAdminTokenModal, setShowAdminTokenModal] = useState(false);
+    const [pendingAction, setPendingAction] = useState(null);
 
     useEffect(() => {
         fetchUsers();
@@ -33,37 +39,88 @@ const UserManagement = () => {
         }
     };
 
+    // Request admin token with password
+    const handleAdminTokenRequest = async (password) => {
+        try {
+            const response = await requestAdminToken(password);
+            const token = response.data.adminToken;
+            setAdminToken(token);
+
+            // Execute pending action with the token
+            if (pendingAction) {
+                await pendingAction(token);
+                setPendingAction(null);
+            }
+
+            setShowAdminTokenModal(false);
+        } catch (err) {
+            throw err; // Let the modal handle the error
+        }
+    };
+
+    // Wrapper to ensure admin token exists before action
+    const withAdminToken = (action) => {
+        return async (...args) => {
+            if (!adminToken) {
+                // Store the action to execute after token is obtained
+                setPendingAction(() => (token) => action(...args, token));
+                setShowAdminTokenModal(true);
+            } else {
+                try {
+                    await action(...args, adminToken);
+                } catch (err) {
+                    // If token expired, request new one
+                    if (err.response?.status === 401 || err.response?.status === 403) {
+                        setAdminToken(null);
+                        setPendingAction(() => (token) => action(...args, token));
+                        setShowAdminTokenModal(true);
+                    } else {
+                        throw err;
+                    }
+                }
+            }
+        };
+    };
+
     const handleApproveClick = (user) => {
         setSelectedUser(user);
         setShowModal(true);
     };
 
-    const handleApprove = async (userId, role) => {
+    const handleApprove = withAdminToken(async (userId, role, token) => {
         try {
-            await approveUser(userId, role);
+            await approveUser(userId, role, token);
             fetchUsers(); // Refresh the list
+            setShowModal(false);
+            setSelectedUser(null);
         } catch (err) {
             alert(err.response?.data?.message || 'Failed to approve user');
         }
-    };
+    });
 
-    const handleReject = async (userId) => {
+    const handleReject = withAdminToken(async (userId, token) => {
         try {
-            await rejectUser(userId);
+            await rejectUser(userId, token);
             fetchUsers(); // Refresh the list
+            setShowModal(false);
+            setSelectedUser(null);
         } catch (err) {
             alert(err.response?.data?.message || 'Failed to reject user');
         }
-    };
+    });
 
     const handleDelete = async (userId, userName) => {
         if (window.confirm(`Are you sure you want to permanently delete ${userName}? This action cannot be undone.`)) {
-            try {
-                await deleteUser(userId);
-                fetchUsers(); // Refresh the list
-            } catch (err) {
-                alert(err.response?.data?.message || 'Failed to delete user');
-            }
+            const deleteAction = withAdminToken(async (uid, token) => {
+                try {
+                    await deleteUser(uid, token);
+                    fetchUsers(); // Refresh the list
+                } catch (err) {
+                    alert(err.response?.data?.message || 'Failed to delete user');
+                }
+            });
+
+            await deleteAction(userId);
         }
     };
 
@@ -233,6 +290,18 @@ const UserManagement = () => {
                     }}
                     onApprove={handleApprove}
                     onReject={handleReject}
+                />
+            )}
+
+            {/* Admin Token Modal */}
+            {showAdminTokenModal && (
+                <AdminTokenModal
+                    onSubmit={handleAdminTokenRequest}
+                    onClose={() => {
+                        setShowAdminTokenModal(false);
+                        setPendingAction(null);
+                    }}
+                    actionType="perform this action"
                 />
             )}
         </div>

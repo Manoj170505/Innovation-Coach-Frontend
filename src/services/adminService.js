@@ -1,5 +1,11 @@
 import api from '../config/apiConfig';
 
+// Request admin token (requires password)
+export const requestAdminToken = async (password) => {
+    const response = await api.post('/users/request-admin-token', { password });
+    return response.data;
+};
+
 // Get system statistics
 export const getSystemStats = async () => {
     const response = await api.get('/users/admin/stats');
@@ -18,21 +24,41 @@ export const getPendingUsers = async () => {
     return response.data;
 };
 
-// Approve a user with role selection
-export const approveUser = async (userId, role = 'USER') => {
-    const response = await api.patch(`/users/admin/approve/${userId}`, { role });
+// Approve a user with role selection (requires admin token)
+export const approveUser = async (userId, role = 'USER', adminToken) => {
+    const response = await api.patch(
+        `/users/admin/approve/${userId}`,
+        { role },
+        {
+            headers: {
+                'x-admin-token': adminToken
+            }
+        }
+    );
     return response.data;
 };
 
-// Reject a user
-export const rejectUser = async (userId) => {
-    const response = await api.patch(`/users/admin/reject/${userId}`);
+// Reject a user (requires admin token)
+export const rejectUser = async (userId, adminToken) => {
+    const response = await api.patch(
+        `/users/admin/reject/${userId}`,
+        {},
+        {
+            headers: {
+                'x-admin-token': adminToken
+            }
+        }
+    );
     return response.data;
 };
 
-// Delete a user
-export const deleteUser = async (userId) => {
-    const response = await api.delete(`/users/admin/delete/${userId}`);
+// Delete a user (requires admin token)
+export const deleteUser = async (userId, adminToken) => {
+    const response = await api.delete(`/users/admin/delete/${userId}`, {
+        headers: {
+            'x-admin-token': adminToken
+        }
+    });
     return response.data;
 };
 
